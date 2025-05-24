@@ -1,0 +1,10 @@
+services:
+  checkus-server:
+    image: 855673866113.dkr.ecr.ap-northeast-2.amazonaws.com/checkus/server
+    ports:
+      - 8080:8080
+    restart: unless-stopped
+    container_name: checkus-server
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_OPTS=-Xmx400m -Xms200m -XX:+UseG1GC #t2.micro
