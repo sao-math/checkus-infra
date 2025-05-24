@@ -7,4 +7,8 @@ services:
     container_name: checkus-server
     environment:
       - SPRING_PROFILES_ACTIVE=prod
+      - RDS_ENDPOINT=${RDS_ENDPOINT}
+      - RDS_USERNAME=${RDS_USERNAME}
+      - RDS_PASSWORD=${RDS_PASSWORD}
+      - RDS_DATABASE=${RDS_DATABASE}
       - JAVA_OPTS=-Xmx400m -Xms200m -XX:+UseG1GC #t2.micro
