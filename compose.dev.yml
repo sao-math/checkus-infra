@@ -1,16 +1,16 @@
 services:
-  checkus-server:
-    image: 855673866113.dkr.ecr.ap-northeast-2.amazonaws.com/checkus/server
+  checkus-server-dev:
+    image: 855673866113.dkr.ecr.ap-northeast-2.amazonaws.com/checkus/server:dev
     ports:
-      - 8080:8080
+      - 8081:8080
     restart: unless-stopped
-    container_name: checkus-server
+    container_name: checkus-server-dev
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=dev
       - RDS_ENDPOINT=${RDS_ENDPOINT}
       - RDS_USERNAME=${RDS_USERNAME}
       - RDS_PASSWORD=${RDS_PASSWORD}
-      - RDS_DATABASE=${RDS_DATABASE}
+      - RDS_DATABASE=${DEV_RDS_DATABASE:-checkus_dev}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
@@ -28,5 +28,5 @@ services:
       - AWS_S3_SECRET_KEY=${AWS_S3_SECRET_KEY}
       - AWS_S3_BUCKET=${AWS_S3_BUCKET}
       - AWS_S3_REGION=${AWS_S3_REGION}
-      - KIOSK_ADMIN_PASSWORD=${KIOSK_ADMIN_PASSWORD}
-      - JAVA_OPTS=-Xmx350m -Xms150m -XX:+UseG1GC  # prod: 350MB (dev와 함께 1GB 내에서 운영)
+      - KIOSK_ADMIN_PASSWORD=${KIOSK_ADMIN_PASSWORD:-123456}
+      - JAVA_OPTS=-Xmx350m -Xms150m -XX:+UseG1GC  # dev: 350MB (prod와 함께 1GB 내에서 운영)
