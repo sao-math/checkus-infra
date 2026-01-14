@@ -8,9 +8,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 300M  # JVM 250M + 버퍼 50M
+          memory: 370M  # JVM 320M + 버퍼 50M
         reservations:
-          memory: 150M
+          memory: 200M
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - RDS_ENDPOINT=${RDS_ENDPOINT}
@@ -35,4 +35,4 @@ services:
       - AWS_S3_BUCKET=${AWS_S3_BUCKET}
       - AWS_S3_REGION=${AWS_S3_REGION}
       - KIOSK_ADMIN_PASSWORD=${KIOSK_ADMIN_PASSWORD:-123456}
-      - JAVA_OPTS=-Xmx250m -Xms100m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication  # dev: 250MB (메모리 절약 모드)
+      - JAVA_OPTS=-Xmx320m -Xms150m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication  # dev: 320MB (시작 가능한 최소 메모리)

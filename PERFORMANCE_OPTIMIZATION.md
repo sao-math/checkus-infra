@@ -5,8 +5,8 @@
 **EC2 인스턴스**: t2.micro (1GB RAM)
 **실행 중인 서비스**:
 - checkus-server (prod): 350MB
-- checkus-server-dev (dev): 250MB
-- Nginx, Docker, OS: ~400MB
+- checkus-server-dev (dev): 320MB
+- Nginx, Docker, OS: ~330MB
 
 ## 즉시 적용 가능한 최적화 방안
 
@@ -27,9 +27,9 @@ deploy:
 deploy:
   resources:
     limits:
-      memory: 300M  # JVM 250M + 버퍼 50M
+      memory: 370M  # JVM 320M + 버퍼 50M
     reservations:
-      memory: 150M
+      memory: 200M
 ```
 
 **효과**:
@@ -39,10 +39,12 @@ deploy:
 
 ### 2. JVM 메모리 최적화 (적용 완료)
 
-#### 개발 서버: 350MB → 250MB 감소
+#### 개발 서버: 350MB → 320MB 감소
 ```yaml
-JAVA_OPTS=-Xmx250m -Xms100m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication
+JAVA_OPTS=-Xmx320m -Xms150m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication
 ```
+
+**주의**: 250MB로 줄였더니 Spring Boot 시작 시 OutOfMemoryError 발생. 320MB가 안정적으로 시작 가능한 최소 메모리.
 
 **추가된 옵션**:
 - `-XX:MaxGCPauseMillis=200`: GC 일시정지 시간 최대 200ms로 제한
@@ -102,7 +104,7 @@ docker-compose -f compose.dev.yml stop checkus-server-dev
 docker-compose -f compose.dev.yml start checkus-server-dev
 ```
 
-**효과**: dev 중지 시 250MB 메모리 확보
+**효과**: dev 중지 시 320MB 메모리 확보
 
 ## 모니터링 명령어
 
@@ -146,11 +148,11 @@ docker-compose -f compose.yml -f compose.dev.yml restart
 
 | 항목 | 변경 전 | 변경 후 | 절감량 |
 |------|---------|---------|--------|
-| dev JVM 메모리 | 350MB | 250MB | **-100MB** |
+| dev JVM 메모리 | 350MB | 320MB | **-30MB** |
 | dev 로깅 오버헤드 | ~20MB | ~5MB | **-15MB** |
 | prod GC 효율 | 기본 | 최적화 | **응답시간 개선** |
-| Swap (선택) | 0MB | 1024MB | **OOM 방지** |
-| **총 절감** | - | - | **~115MB** |
+| Docker 메모리 제한 | 없음 | 적용 | **안정성 향상** |
+| **총 절감** | - | - | **~45MB** |
 
 ## 향후 고려사항
 
