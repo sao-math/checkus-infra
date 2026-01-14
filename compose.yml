@@ -29,4 +29,4 @@ services:
       - AWS_S3_BUCKET=${AWS_S3_BUCKET}
       - AWS_S3_REGION=${AWS_S3_REGION}
       - KIOSK_ADMIN_PASSWORD=${KIOSK_ADMIN_PASSWORD}
-      - JAVA_OPTS=-Xmx350m -Xms150m -XX:+UseG1GC  # prod: 350MB (dev와 함께 1GB 내에서 운영)
+      - JAVA_OPTS=-Xmx350m -Xms150m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M  # prod: 350MB (GC 최적화)
