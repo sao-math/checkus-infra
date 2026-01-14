@@ -5,6 +5,12 @@ services:
       - 8081:8080
     restart: unless-stopped
     container_name: checkus-server-dev
+    deploy:
+      resources:
+        limits:
+          memory: 300M  # JVM 250M + 버퍼 50M
+        reservations:
+          memory: 150M
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - RDS_ENDPOINT=${RDS_ENDPOINT}

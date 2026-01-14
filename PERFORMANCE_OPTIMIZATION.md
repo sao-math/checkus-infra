@@ -10,24 +10,32 @@
 
 ## 즉시 적용 가능한 최적화 방안
 
-### 1. 개발 서버 필요 시에만 실행 (권장)
+### 1. Docker 레벨 메모리 제한 (적용 완료)
 
-**효과**: 250MB 메모리 즉시 확보
+한 컨테이너가 메모리를 과도하게 사용해도 다른 컨테이너를 보호합니다.
 
-```bash
-# 평소: prod만 실행
-cd /home/ec2-user/checkus-infra
-docker-compose up -d
+```yaml
+# compose.yml (prod)
+deploy:
+  resources:
+    limits:
+      memory: 400M  # JVM 350M + 버퍼 50M
+    reservations:
+      memory: 200M
 
-# 개발 필요 시: dev 추가
-docker-compose -f compose.yml -f compose.dev.yml up -d
-
-# 개발 완료 후: dev 중지
-docker-compose -f compose.dev.yml stop checkus-server-dev
-
-# dev 완전히 제거
-docker-compose -f compose.dev.yml down checkus-server-dev
+# compose.dev.yml (dev)
+deploy:
+  resources:
+    limits:
+      memory: 300M  # JVM 250M + 버퍼 50M
+    reservations:
+      memory: 150M
 ```
+
+**효과**:
+- prod가 메모리 폭주해도 dev 보호 (또는 반대)
+- OOM Killer가 전체가 아닌 해당 컨테이너만 종료
+- 자동 재시작 (restart: unless-stopped)
 
 ### 2. JVM 메모리 최적화 (적용 완료)
 
@@ -80,35 +88,21 @@ chmod +x add-swap.sh
 
 **주의**: Swap은 SSD가 아닌 EBS 볼륨에서 느림
 
-### 5. Docker 컨테이너 메모리 제한 (선택사항)
+### 5. 개발 서버를 필요 시에만 실행 (현재는 항상 실행)
 
-현재는 JVM `-Xmx`로만 제한하고 있습니다. Docker 레벨에서도 제한하려면:
+**참고**: QA 등을 위해 현재는 dev 서버를 항상 띄워둡니다.
 
-```yaml
-# compose.yml
-services:
-  checkus-server:
-    # ... 기존 설정
-    deploy:
-      resources:
-        limits:
-          memory: 400M  # JVM 350M + 버퍼 50M
-        reservations:
-          memory: 200M
+만약 나중에 dev 서버가 필요 없는 시간이 생기면:
 
-# compose.dev.yml
-services:
-  checkus-server-dev:
-    # ... 기존 설정
-    deploy:
-      resources:
-        limits:
-          memory: 300M  # JVM 250M + 버퍼 50M
-        reservations:
-          memory: 150M
+```bash
+# dev 중지
+docker-compose -f compose.dev.yml stop checkus-server-dev
+
+# dev 재시작
+docker-compose -f compose.dev.yml start checkus-server-dev
 ```
 
-**효과**: Docker가 컨테이너별 메모리를 강제로 제한하여 다른 서비스 영향 최소화
+**효과**: dev 중지 시 250MB 메모리 확보
 
 ## 모니터링 명령어
 
