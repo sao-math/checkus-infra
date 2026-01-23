@@ -35,4 +35,5 @@ services:
       - TIRO_API_KEY=${TIRO_API_KEY}
       - TIRO_API_ENABLED=${TIRO_API_ENABLED:-false}
       - ENCRYPTION_SECRET_KEY=${ENCRYPTION_SECRET_KEY}
+      - SENTRY_DSN=${SENTRY_DSN}
       - JAVA_OPTS=-Xmx1024m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=2M  # t3.small: 1GB 힙
