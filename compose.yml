@@ -1,3 +1,7 @@
+# When adding/removing environment variables here, also update the export lines in:
+#   checkus-server/.github/workflows/cicd.yml
+#   checkus-server/.github/workflows/cicd-dev.yml (if applicable)
+#   checkus-server/.github/workflows/deploy-only.yml
 services:
   checkus-server:
     image: 855673866113.dkr.ecr.ap-northeast-2.amazonaws.com/checkus/server
