@@ -1,51 +1,92 @@
 # When adding/removing environment variables here, also update the export lines in:
 #   checkus-server/.github/workflows/cicd.yml
-#   checkus-server/.github/workflows/cicd-dev.yml (if applicable)
 #   checkus-server/.github/workflows/deploy-only.yml
+#
+# Blue-green deployment: nginx routes to active container (blue or green).
+# Only one of blue/green runs at a time. deploy.sh handles switching.
+
+x-server-env: &server-env
+  - SPRING_PROFILES_ACTIVE=prod
+  - RDS_ENDPOINT=${RDS_ENDPOINT}
+  - RDS_USERNAME=${RDS_USERNAME}
+  - RDS_PASSWORD=${RDS_PASSWORD}
+  - RDS_DATABASE=${RDS_DATABASE}
+  - DISCORD_TOKEN=${DISCORD_TOKEN}
+  - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
+  - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
+  - DISCORD_NOTIFICATION_CHANNEL_ID=${DISCORD_NOTIFICATION_CHANNEL_ID}
+  - ADMIN_NAME=관리자
+  - JWT_ACCESS_EXPIRATION=3600000
+  - JWT_REFRESH_EXPIRATION=604800000
+  - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+  - ADMIN_USERNAME=${ADMIN_USERNAME}
+  - JWT_SECRET=${JWT_SECRET}
+  - BIZGO_CLIENT_ID=${BIZGO_CLIENT_ID}
+  - BIZGO_CLIENT_PASSWORD=${BIZGO_CLIENT_PASSWORD}
+  - BIZGO_SENDER_KEY=${BIZGO_SENDER_KEY}
+  - AWS_S3_ACCESS_KEY=${AWS_S3_ACCESS_KEY}
+  - AWS_S3_SECRET_KEY=${AWS_S3_SECRET_KEY}
+  - AWS_S3_BUCKET=${AWS_S3_BUCKET}
+  - AWS_S3_REGION=${AWS_S3_REGION}
+  - KIOSK_ADMIN_PASSWORD=${KIOSK_ADMIN_PASSWORD}
+  - KIOSK_API_KEY=${KIOSK_API_KEY}
+  - OPENAI_API_KEY=${OPENAI_API_KEY}
+  - OPENAI_ADMIN_API_KEY=${OPENAI_ADMIN_API_KEY}
+  - AI_CONSULTATION_ENABLED=${AI_CONSULTATION_ENABLED:-false}
+  - TIRO_API_KEY=${TIRO_API_KEY}
+  - TIRO_API_ENABLED=${TIRO_API_ENABLED:-false}
+  - ENCRYPTION_SECRET_KEY=${ENCRYPTION_SECRET_KEY}
+  - SENTRY_DSN=${SENTRY_DSN}
+  - PAYMINT_ENABLED=${PAYMINT_ENABLED:-false}
+  - PAYMINT_API_KEY=${PAYMINT_API_KEY}
+  - JAVA_OPTS=-Xmx350m -Xms150m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M
+
+x-server-logging: &server-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
 services:
-  checkus-server:
-    image: 855673866113.dkr.ecr.ap-northeast-2.amazonaws.com/checkus/server
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
     ports:
-      - 8080:8080
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/active.conf:/etc/nginx/conf.d/active.conf:ro
     restart: unless-stopped
-    container_name: checkus-server
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - RDS_ENDPOINT=${RDS_ENDPOINT}
-      - RDS_USERNAME=${RDS_USERNAME}
-      - RDS_PASSWORD=${RDS_PASSWORD}
-      - RDS_DATABASE=${RDS_DATABASE}
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
-      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
-      - DISCORD_NOTIFICATION_CHANNEL_ID=${DISCORD_NOTIFICATION_CHANNEL_ID}
-      - ADMIN_NAME=관리자
-      - JWT_ACCESS_EXPIRATION=3600000
-      - JWT_REFRESH_EXPIRATION=604800000
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - ADMIN_USERNAME=${ADMIN_USERNAME}
-      - JWT_SECRET=${JWT_SECRET}
-      - BIZGO_CLIENT_ID=${BIZGO_CLIENT_ID}
-      - BIZGO_CLIENT_PASSWORD=${BIZGO_CLIENT_PASSWORD}
-      - BIZGO_SENDER_KEY=${BIZGO_SENDER_KEY}
-      - AWS_S3_ACCESS_KEY=${AWS_S3_ACCESS_KEY}
-      - AWS_S3_SECRET_KEY=${AWS_S3_SECRET_KEY}
-      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
-      - AWS_S3_REGION=${AWS_S3_REGION}
-      - KIOSK_ADMIN_PASSWORD=${KIOSK_ADMIN_PASSWORD}
-      - KIOSK_API_KEY=${KIOSK_API_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_ADMIN_API_KEY=${OPENAI_ADMIN_API_KEY}
-      - AI_CONSULTATION_ENABLED=${AI_CONSULTATION_ENABLED:-false}
-      - TIRO_API_KEY=${TIRO_API_KEY}
-      - TIRO_API_ENABLED=${TIRO_API_ENABLED:-false}
-      - ENCRYPTION_SECRET_KEY=${ENCRYPTION_SECRET_KEY}
-      - SENTRY_DSN=${SENTRY_DSN}
-      - PAYMINT_ENABLED=${PAYMINT_ENABLED:-false}
-      - PAYMINT_API_KEY=${PAYMINT_API_KEY}
-      - JAVA_OPTS=-Xmx350m -Xms150m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M  # prod: 350MB (GC 최적화)
+    networks:
+      - checkus-net
     logging:
       driver: json-file
       options:
-        max-size: "50m"
-        max-file: "5"
+        max-size: "10m"
+        max-file: "3"
+
+  checkus-blue:
+    image: 855673866113.dkr.ecr.ap-northeast-2.amazonaws.com/checkus/server
+    ports:
+      - "8081:8080"
+    restart: unless-stopped
+    container_name: checkus-blue
+    networks:
+      - checkus-net
+    environment: *server-env
+    logging: *server-logging
+
+  checkus-green:
+    image: 855673866113.dkr.ecr.ap-northeast-2.amazonaws.com/checkus/server
+    ports:
+      - "8082:8080"
+    restart: unless-stopped
+    container_name: checkus-green
+    networks:
+      - checkus-net
+    environment: *server-env
+    logging: *server-logging
+
+networks:
+  checkus-net:
+    driver: bridge
