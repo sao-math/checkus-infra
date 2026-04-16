@@ -40,6 +40,7 @@ x-server-env: &server-env
   - PAYMINT_ENABLED=${PAYMINT_ENABLED:-false}
   - PAYMINT_API_KEY=${PAYMINT_API_KEY}
   - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+  - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
   - JAVA_OPTS=-Xmx350m -Xms150m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M
 
 x-server-logging: &server-logging
@@ -57,6 +58,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/active.conf:/etc/nginx/conf.d/active.conf:ro
+      - ./nginx/blocked-endpoints.conf:/etc/nginx/conf.d/blocked-endpoints.conf
     restart: unless-stopped
     networks:
       - checkus-net
