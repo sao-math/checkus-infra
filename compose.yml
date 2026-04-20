@@ -39,7 +39,6 @@ x-server-env: &server-env
   - SENTRY_DSN=${SENTRY_DSN}
   - PAYMINT_ENABLED=${PAYMINT_ENABLED:-false}
   - PAYMINT_API_KEY=${PAYMINT_API_KEY}
-  - GITHUB_TOKEN=${GITHUB_TOKEN:-}
   - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
   - JAVA_OPTS=-Xmx700m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M
 
