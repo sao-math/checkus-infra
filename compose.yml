@@ -76,6 +76,8 @@ services:
     networks:
       - checkus-net
     environment: *server-env
+    volumes:
+      - /home/ubuntu/checkus-data:/app/data
     logging: *server-logging
 
   checkus-green:
@@ -87,6 +89,8 @@ services:
     networks:
       - checkus-net
     environment: *server-env
+    volumes:
+      - /home/ubuntu/checkus-data:/app/data
     logging: *server-logging
 
 networks:
