@@ -40,7 +40,7 @@ x-server-env: &server-env
   - PAYMINT_ENABLED=${PAYMINT_ENABLED:-false}
   - PAYMINT_API_KEY=${PAYMINT_API_KEY}
   - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
-  - JAVA_OPTS=-Xmx1200m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M
+  - JAVA_OPTS=-Xmx2048m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M
 
 x-server-logging: &server-logging
   driver: json-file
