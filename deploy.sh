@@ -7,6 +7,11 @@ set -euo pipefail
 # Requires: environment variables exported by CI/CD before calling
 # =============================================================
 
+NO_SWITCH=false
+if [ "${1:-}" = "--no-switch" ]; then
+    NO_SWITCH=true
+fi
+
 INFRA_DIR="$HOME/checkus-infra"
 ACTIVE_FILE="$INFRA_DIR/active-color"
 ECR_IMAGE="855673866113.dkr.ecr.ap-northeast-2.amazonaws.com/checkus/server:latest"
@@ -68,6 +73,20 @@ for i in $(seq 1 $MAX_HEALTH_ATTEMPTS); do
     fi
     sleep $HEALTH_INTERVAL
 done
+
+# ---- Switch or stop here ----
+if [ "$NO_SWITCH" = true ]; then
+    echo "[5/6] --no-switch: skipping nginx switch"
+    echo "[6/6] Target $TARGET is running on port $TARGET_PORT — verify manually"
+    echo ""
+    echo "=========================================="
+    echo "Deploy complete (NO SWITCH)"
+    echo "  $TARGET is ready on port $TARGET_PORT"
+    echo "  Current active: $CURRENT"
+    echo "  To switch: ./switch.sh"
+    echo "=========================================="
+    exit 0
+fi
 
 # ---- Switch nginx to point to the new target ----
 echo "[5/6] Switching nginx to $TARGET..."
