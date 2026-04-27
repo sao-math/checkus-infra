@@ -98,7 +98,8 @@ echo "$TARGET" > "$ACTIVE_FILE"
 # ---- Stop the old active container ----
 if [ "$CURRENT" != "none" ]; then
     echo "[6/6] Stopping old container (checkus-$CURRENT)..."
-    sleep 5
+    echo "  Draining connections (30s)..."
+    sleep 30
     docker compose -f compose.yml stop "checkus-$CURRENT"
 else
     echo "[6/6] No old container to stop (first deploy)."

@@ -64,7 +64,8 @@ echo "$TARGET" > "$ACTIVE_FILE"
 # ---- Stop old container ----
 if [ "$CURRENT" != "none" ] && [ "$CURRENT" != "$TARGET" ]; then
     echo "[3/3] Stopping old container (checkus-$CURRENT)..."
-    sleep 5
+    echo "  Draining connections (30s)..."
+    sleep 30
     docker compose -f compose.yml stop "checkus-$CURRENT"
 else
     echo "[3/3] No old container to stop."
