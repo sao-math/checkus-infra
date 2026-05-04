@@ -283,14 +283,73 @@ post_restore_cleanup() {
     else
         log "web_push_subscription table not found; skipped"
     fi
+
+    # F527 Phase 2 inventory (2026-05-04): additional cleanup tables
+    if table_exists_dev refresh_token; then
+        local refresh_before
+        refresh_before="$(mysql_dev -N -e "SELECT COUNT(*) FROM refresh_token;")"
+        mysql_dev -e "DELETE FROM refresh_token;"
+        log "refresh_token deleted: $refresh_before (prod user sessions removed from dev)"
+    else
+        log "refresh_token table not found; skipped"
+    fi
+
+    if table_exists_dev one_time_token; then
+        local ott_before
+        ott_before="$(mysql_dev -N -e "SELECT COUNT(*) FROM one_time_token;")"
+        mysql_dev -e "DELETE FROM one_time_token;"
+        log "one_time_token deleted: $ott_before (pending OTPs removed)"
+    else
+        log "one_time_token table not found; skipped"
+    fi
+
+    if table_exists_dev bizgo_sender_profile; then
+        local bizgo_before
+        bizgo_before="$(mysql_dev -N -e "SELECT COUNT(*) FROM bizgo_sender_profile;")"
+        mysql_dev -e "DELETE FROM bizgo_sender_profile;"
+        log "bizgo_sender_profile deleted: $bizgo_before (Alimtalk vendor credentials removed)"
+    else
+        log "bizgo_sender_profile table not found; skipped"
+    fi
+
+    if table_exists_dev attendance_event; then
+        local att_before
+        att_before="$(mysql_dev -N -e "SELECT COUNT(*) FROM attendance_event WHERE notification_sent = 0;")"
+        mysql_dev -e "UPDATE attendance_event SET notification_sent = 1, notification_sent_at = UTC_TIMESTAMP() WHERE notification_sent = 0;"
+        log "attendance_event notification_sent flagged: $att_before (scheduler will not re-attempt notifications)"
+    else
+        log "attendance_event table not found; skipped"
+    fi
 }
 
 verify_after_restore() {
     log "Verifying restored dev DB"
     verify_identity
     log "Restored dev base table count: $(table_count "$DEV_DB" "$DEV_HOST" "$DEV_USER" "$DEV_PASS")"
-    log "Restored dev pending_notification rows: $(row_count_if_exists pending_notification)"
+    log "Restored dev pending_notification PENDING rows: $(row_count_pending_if_exists pending_notification PENDING)"
     log "Restored dev web_push_subscription rows: $(row_count_if_exists web_push_subscription)"
+    log "Restored dev refresh_token rows: $(row_count_if_exists refresh_token)"
+    log "Restored dev one_time_token rows: $(row_count_if_exists one_time_token)"
+    log "Restored dev bizgo_sender_profile rows: $(row_count_if_exists bizgo_sender_profile)"
+    log "Restored dev attendance_event notification_sent=0 rows: $(row_count_pending_if_exists attendance_event 'notification_sent=0' raw)"
+}
+
+# Helper: count rows matching status='X' (or raw WHERE) if table exists, else "n/a"
+row_count_pending_if_exists() {
+    local table="$1"
+    local condition="$2"
+    local raw_mode="${3:-status}"
+    if table_exists_dev "$table"; then
+        local where
+        if [[ "$raw_mode" == "raw" ]]; then
+            where="WHERE $condition"
+        else
+            where="WHERE status='$condition'"
+        fi
+        mysql_dev -N -e "SELECT COUNT(*) FROM $table $where;"
+    else
+        echo "n/a"
+    fi
 }
 
 health_check_dev() {
