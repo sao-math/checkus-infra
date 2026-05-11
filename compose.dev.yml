@@ -38,6 +38,8 @@ services:
       - TIRO_API_ENABLED=${TIRO_API_ENABLED:-false}
       - ENCRYPTION_SECRET_KEY=${ENCRYPTION_SECRET_KEY}
       - SENTRY_DSN=${SENTRY_DSN}
+      - PROMETHEUS_SCRAPE_USERNAME=${PROMETHEUS_SCRAPE_USERNAME:-prometheus}
+      - PROMETHEUS_SCRAPE_PASSWORD=${PROMETHEUS_SCRAPE_PASSWORD:-}
       - EXTERNAL_SIDE_EFFECTS_ENABLED=false
       - EXTERNAL_SIDE_EFFECTS_ALLOWED_TYPES=
       - OPS_DEV_SNAPSHOT_ENABLED=${OPS_DEV_SNAPSHOT_ENABLED:-false}
@@ -54,3 +56,33 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
+
+  # Grafana Alloy: dev HikariCP/JVM 메트릭 scrape → Grafana Cloud Prometheus (F545)
+  # `profiles: [monitoring]` 로 opt-in. Phase B 완료 후 활성화.
+  alloy-dev:
+    image: grafana/alloy:v1.4.0
+    container_name: alloy-dev
+    profiles: [monitoring]
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12346
+      - --stability.level=generally-available
+    volumes:
+      - ./alloy/dev.alloy:/etc/alloy/config.alloy:ro
+    environment:
+      - PROMETHEUS_SCRAPE_USERNAME=${PROMETHEUS_SCRAPE_USERNAME:-prometheus}
+      - PROMETHEUS_SCRAPE_PASSWORD=${PROMETHEUS_SCRAPE_PASSWORD:-}
+      - GRAFANA_CLOUD_PROM_URL=${GRAFANA_CLOUD_PROM_URL:-}
+      - GRAFANA_CLOUD_PROM_USERNAME=${GRAFANA_CLOUD_PROM_USERNAME:-}
+      - GRAFANA_CLOUD_PROM_API_KEY=${GRAFANA_CLOUD_PROM_API_KEY:-}
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"

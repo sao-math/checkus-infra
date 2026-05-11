@@ -38,6 +38,8 @@ x-server-env: &server-env
   - PAYMINT_ENABLED=${PAYMINT_ENABLED:-false}
   - PAYMINT_API_KEY=${PAYMINT_API_KEY}
   - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+  - PROMETHEUS_SCRAPE_USERNAME=${PROMETHEUS_SCRAPE_USERNAME:-prometheus}
+  - PROMETHEUS_SCRAPE_PASSWORD=${PROMETHEUS_SCRAPE_PASSWORD:-}
   - JAVA_OPTS=-Xmx2048m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M
 
 x-server-logging: &server-logging
@@ -92,6 +94,39 @@ services:
     volumes:
       - /home/ubuntu/checkus-data:/app/data
     logging: *server-logging
+
+  # Grafana Alloy: HikariCP/JVM 메트릭 scrape → Grafana Cloud Prometheus remote_write (F545)
+  # `profiles: [monitoring]` 로 opt-in. Phase B(Grafana Cloud 가입) 완료 후
+  # `COMPOSE_PROFILES=monitoring` 환경변수로 활성화.
+  alloy:
+    image: grafana/alloy:v1.4.0
+    container_name: alloy
+    profiles: [monitoring]
+    restart: unless-stopped
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --stability.level=generally-available
+    volumes:
+      - ./alloy/prod.alloy:/etc/alloy/config.alloy:ro
+    environment:
+      - PROMETHEUS_SCRAPE_USERNAME=${PROMETHEUS_SCRAPE_USERNAME:-prometheus}
+      - PROMETHEUS_SCRAPE_PASSWORD=${PROMETHEUS_SCRAPE_PASSWORD:-}
+      - GRAFANA_CLOUD_PROM_URL=${GRAFANA_CLOUD_PROM_URL:-}
+      - GRAFANA_CLOUD_PROM_USERNAME=${GRAFANA_CLOUD_PROM_USERNAME:-}
+      - GRAFANA_CLOUD_PROM_API_KEY=${GRAFANA_CLOUD_PROM_API_KEY:-}
+    networks:
+      - checkus-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
 
 networks:
   checkus-net:

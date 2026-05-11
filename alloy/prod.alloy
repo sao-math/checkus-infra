@@ -1,0 +1,53 @@
+// Grafana Alloy config — prod checkus-server (blue + green) metrics scrape
+// Scrapes /actuator/prometheus on both blue and green (only the active one is hot at any time,
+// but both are scraped so we have no blind spot during deploy switch).
+// Forwards to Grafana Cloud Prometheus via remote_write.
+//
+// Env vars (passed via docker-compose):
+//   PROMETHEUS_SCRAPE_USERNAME  — basic-auth user for /actuator/prometheus (default: "prometheus")
+//   PROMETHEUS_SCRAPE_PASSWORD  — basic-auth password
+//   GRAFANA_CLOUD_PROM_URL      — Grafana Cloud remote_write endpoint
+//   GRAFANA_CLOUD_PROM_USERNAME — Grafana Cloud instance ID (numeric)
+//   GRAFANA_CLOUD_PROM_API_KEY  — Grafana Cloud API key (write metrics scope)
+
+prometheus.scrape "checkus_server_prod" {
+  targets = [
+    {
+      __address__     = "checkus-blue:8080",
+      __metrics_path__ = "/actuator/prometheus",
+      instance        = "checkus-blue",
+      slot            = "blue",
+    },
+    {
+      __address__     = "checkus-green:8080",
+      __metrics_path__ = "/actuator/prometheus",
+      instance        = "checkus-green",
+      slot            = "green",
+    },
+  ]
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+
+  basic_auth {
+    username = sys.env("PROMETHEUS_SCRAPE_USERNAME")
+    password = sys.env("PROMETHEUS_SCRAPE_PASSWORD")
+  }
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROM_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROM_USERNAME")
+      password = sys.env("GRAFANA_CLOUD_PROM_API_KEY")
+    }
+  }
+
+  // external_labels: attach to every series so Grafana dashboards/alerts can filter by env.
+  external_labels = {
+    environment = "prod",
+    application = "checkus-server",
+  }
+}

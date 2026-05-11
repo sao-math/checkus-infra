@@ -1,0 +1,37 @@
+// Grafana Alloy config — dev checkus-server-dev metrics scrape.
+// Single dev container (no blue-green). Forwards to same Grafana Cloud Prometheus
+// with environment=dev label so alert rules can scope by env.
+
+prometheus.scrape "checkus_server_dev" {
+  targets = [
+    {
+      __address__     = "checkus-server-dev:8080",
+      __metrics_path__ = "/actuator/prometheus",
+      instance        = "checkus-server-dev",
+    },
+  ]
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  scrape_interval = "30s"
+  scrape_timeout  = "10s"
+
+  basic_auth {
+    username = sys.env("PROMETHEUS_SCRAPE_USERNAME")
+    password = sys.env("PROMETHEUS_SCRAPE_PASSWORD")
+  }
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROM_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROM_USERNAME")
+      password = sys.env("GRAFANA_CLOUD_PROM_API_KEY")
+    }
+  }
+
+  external_labels = {
+    environment = "dev",
+    application = "checkus-server",
+  }
+}
