@@ -2,6 +2,12 @@
 
 F545 의 사용자 측 셋업 가이드. Phase B/D 수행 시 참고.
 
+## ⚠️ Gotchas (신규 contact point / alert rule 만들 때마다 확인)
+
+1. **Slack contact point Integration 은 반드시 `Slack`** — `Webhook` (generic) 선택 시 Slack 이 400 으로 거절. (2026-05-14 incident.)
+2. **신규 alert rule 의 "When no data" 는 `OK` 또는 `Keep Last State`** — 기본값 `Alerting` 그대로 두면 prod alloy 잠시 멈추거나 메트릭 갭 생길 때마다 `DatasourceNoData` 알림 폭격. (2026-05-14 incident.)
+3. **deploy.sh 는 `checkus-${TARGET}` 만 띄움 → compose profile 의 sidecar(`alloy`) 안 깨움**. `cicd.yml` / `deploy-only.yml` 워크플로에 `./deploy.sh` 다음으로 `docker compose -f compose.yml --profile monitoring up -d alloy` 별도 실행 필수 (이미 패치됨, 신규 sidecar 추가 시 같은 패턴 따라야 함).
+
 ## 0. 사전 조건
 
 - checkus-server 가 `/actuator/prometheus` 를 Basic Auth 로 노출 (F545 Phase A 완료)
@@ -49,11 +55,14 @@ ssh checkus 'cd ~/checkus-infra && COMPOSE_PROFILES=monitoring docker compose -f
 ## 3. Slack contact point 추가 (Phase D)
 
 1. Grafana → 좌측 **Alerts & IRM** → **Alerting** → **Contact points** → **Add contact point**
-2. Name: `checkus-notice`
-3. Integration: `Slack`
-4. **Webhook URL**: 기존 `#checkus-notice` Incoming webhook URL (1Password / SLACK_WEBHOOK_URL secret 과 동일하거나 별도 발급)
-5. Test → "OK" 클릭 → Slack 채널에 테스트 메시지 도착 확인
-6. **Save contact point**
+2. Name: 채널 이름과 동일하게 (예: `checkus-briefing` 또는 `checkus-notice`)
+3. **Integration**: ⚠️ **반드시 `Slack`** — `Webhook` (generic) 으로 선택하면 Grafana 가 자체 JSON 포맷으로 보내서 Slack 이 **400 Bad Request** 로 거절한다. 같은 URL 이라도 Integration 선택에 따라 동작 달라짐. (2026-05-14 incident.)
+4. **Webhook URL**: 대상 채널 Incoming webhook URL
+   - `#checkus-notice`: `SLACK_WEBHOOK_URL` secret 과 동일 (`https://hooks.slack.com/services/T025R6X1AC9/B0ANVUA5FQV/...`)
+   - `#checkus-briefing`: `SLACK_BRIEFING_WEBHOOK_URL` secret 과 동일 (`https://hooks.slack.com/services/T025R6X1AC9/B0APJ0D1BC2/...`)
+5. **Recipient / Username / Icon emoji 등 비워둠** — Slack incoming webhook 은 채널이 URL 에 고정되어 있어서 override 보내면 400.
+6. Test → "OK" 클릭 → Slack 채널에 테스트 메시지 도착 확인
+7. **Save contact point**
 
 ## 4. 알림 규칙 추가 (Phase D)
 
@@ -67,6 +76,7 @@ ssh checkus 'cd ~/checkus-infra && COMPOSE_PROFILES=monitoring docker compose -f
 각 규칙은:
 - **Folder**: `CheckUS`
 - **Evaluation group**: `hikaricp` (interval 30s)
+- ⚠️ **"Configure no data and error handling" → `Alert state if no data` = `OK` (또는 `Keep Last State`)** — 기본값은 `Alerting` 이라 prod alloy 가 일시적으로 죽거나 blue/green 전환 중 메트릭 갭이 생기면 `DatasourceNoData` 알림이 폭격된다 (2026-05-14 incident). 신규 규칙 만들 때마다 반드시 이 옵션 확인.
 - **Labels**: `severity=critical|warning`, `team=backend`
 - **Annotations**:
   - `summary`: 한 줄

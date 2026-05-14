@@ -1,5 +1,11 @@
 # HikariCP 알림 규칙 상세 (F545 Phase D)
 
+## ⚠️ 모든 규칙 공통 필수 설정
+
+- **Configure no data and error handling → Alert state if no data**: `OK` (또는 `Keep Last State`)
+  - 기본값 `Alerting` 이면 메트릭 갭마다 `DatasourceNoData` false positive (2026-05-14 incident)
+- **Notification → Contact point**: `checkus-briefing` (single-developer 환경 기준. 팀 확장 시 `checkus-notice` 로 이동)
+
 ## Rule 1 — HikariCP pool pending queue (critical)
 
 **의도**: 풀에 대기 트랜잭션 발생 = 풀이 사실상 포화. cascade 전조. 1분 이상 지속되면 즉시 알림.
@@ -22,7 +28,7 @@
 - **Annotations**:
   - `summary`: `HikariCP 풀에 대기 트랜잭션 발생 — cascade 전조 ({{ $labels.instance }})`
   - `description`: `pending={{ $values.A.Value }} on instance {{ $labels.instance }} for 1m+. Pool exhaustion 위험. /actuator/prometheus 확인 + 진행 중 느린 쿼리 식별.`
-- **Notification**: contact point `checkus-notice`
+- **Notification**: contact point `checkus-briefing` (위 공통 가드 참조)
 
 ### 왜 `pending > 0` 인가
 - HikariCP `connections_pending` = `getConnection()` 호출을 기다리는 스레드 수
@@ -48,7 +54,7 @@
 - **Annotations**:
   - `summary`: `HikariCP 풀 사용률 {{ printf "%.0f%%" (mul $values.A.Value 100.0) }} 지속 ({{ $labels.instance }})`
   - `description`: `active/max ratio = {{ $values.A.Value }} 2m+. 트래픽 증가 또는 쿼리 점유 시간 증가 가능. 임박한 풀 고갈은 아니지만 Rule 1 트리거 전에 잡고자 함.`
-- **Notification**: contact point `checkus-notice`
+- **Notification**: contact point `checkus-briefing` (위 공통 가드 참조)
 
 ## Rule 3 — HikariCP connection timeout rate (warning, optional)
 
