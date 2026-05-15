@@ -35,12 +35,18 @@ x-server-env: &server-env
   - TIRO_API_ENABLED=${TIRO_API_ENABLED:-false}
   - ENCRYPTION_SECRET_KEY=${ENCRYPTION_SECRET_KEY}
   - SENTRY_DSN=${SENTRY_DSN}
+  - NAVER_RESERVATION_FALLBACK_SLACK_WEBHOOK_URL=${NAVER_RESERVATION_FALLBACK_SLACK_WEBHOOK_URL:-}
+  - NAVER_RESERVATION_EXPECTED_SNS_TOPIC_ARN=${NAVER_RESERVATION_EXPECTED_SNS_TOPIC_ARN:-}
   - PAYMINT_ENABLED=${PAYMINT_ENABLED:-false}
   - PAYMINT_API_KEY=${PAYMINT_API_KEY}
   - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
   - PROMETHEUS_SCRAPE_USERNAME=${PROMETHEUS_SCRAPE_USERNAME:-prometheus}
   - PROMETHEUS_SCRAPE_PASSWORD=${PROMETHEUS_SCRAPE_PASSWORD:-}
-  - JAVA_OPTS=-Xmx2048m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M
+  # F587 (2026-05-15): pool 20 → 30 defense-in-depth. RDS max_connections 여유 확인됨.
+  - SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE=${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:-30}
+  # F587 (2026-05-15): GC 로그 활성화. 다음 incident 진단을 위해 Full GC stop-the-world 직접 캡처.
+  # /app/data 는 호스트 /home/ubuntu/checkus-data 와 mount, 컨테이너 재시작에도 보존.
+  - JAVA_OPTS=-Xmx2048m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:G1HeapRegionSize=1M -Xlog:gc*:file=/app/data/gc.log:time,level,tags:filecount=5,filesize=10M
 
 x-server-logging: &server-logging
   driver: json-file
