@@ -1,14 +1,16 @@
-// Grafana Alloy config — prod checkus-server (blue + green) metrics scrape
+// Grafana Alloy config — prod checkus-server (blue + green) metrics scrape + nginx log ship.
 // Scrapes /actuator/prometheus on both blue and green (only the active one is hot at any time,
 // but both are scraped so we have no blind spot during deploy switch).
-// Forwards to Grafana Cloud Prometheus via remote_write.
+// Forwards to Grafana Cloud Prometheus via remote_write + nginx logs to Grafana Cloud Loki.
 //
 // Env vars (passed via docker-compose):
 //   PROMETHEUS_SCRAPE_USERNAME  — basic-auth user for /actuator/prometheus (default: "prometheus")
 //   PROMETHEUS_SCRAPE_PASSWORD  — basic-auth password
 //   GRAFANA_CLOUD_PROM_URL      — Grafana Cloud remote_write endpoint
-//   GRAFANA_CLOUD_PROM_USERNAME — Grafana Cloud instance ID (numeric)
-//   GRAFANA_CLOUD_PROM_API_KEY  — Grafana Cloud API key (write metrics scope)
+//   GRAFANA_CLOUD_PROM_USERNAME — Grafana Cloud Prometheus instance ID (numeric)
+//   GRAFANA_CLOUD_PROM_API_KEY  — Grafana Cloud API key (now also has logs:write scope; reused for Loki)
+//   GRAFANA_CLOUD_LOKI_URL      — Grafana Cloud Loki host (e.g. https://logs-prod-030.grafana.net)
+//   GRAFANA_CLOUD_LOKI_USERNAME — Grafana Cloud Loki instance ID (numeric)
 
 prometheus.scrape "checkus_server_prod" {
   targets = [
@@ -49,5 +51,59 @@ prometheus.remote_write "grafana_cloud" {
   external_labels = {
     environment = "prod",
     application = "checkus-server",
+  }
+}
+
+// === Logs: nginx access/error logs → Grafana Cloud Loki ===
+// Reads container stdout via docker socket. nginx writes its combined-format access log to
+// stdout (per Docker convention), so loki.source.docker captures it without a file mount.
+
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "30s"
+}
+
+discovery.relabel "nginx_only" {
+  targets = discovery.docker.containers.targets
+
+  // Keep only the `nginx` container.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/nginx"
+    action        = "keep"
+  }
+
+  // Strip the leading slash docker prepends to container names.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+    replacement   = "$1"
+  }
+}
+
+loki.source.docker "nginx" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.nginx_only.output
+  forward_to = [loki.write.grafana_cloud.receiver]
+  labels = {
+    job = "nginx",
+  }
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_LOKI_URL") + "/loki/api/v1/push"
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_LOKI_USERNAME")
+      // Reuses the prom write API key — the underlying Cloud Access Policy now grants
+      // both metrics:write and logs:write (set:alloy-data-write).
+      password = sys.env("GRAFANA_CLOUD_PROM_API_KEY")
+    }
+  }
+
+  external_labels = {
+    environment = "prod",
   }
 }
